@@ -49,7 +49,17 @@ docker build -t notes-api:0.1.0 ./app
 kind load docker-image notes-api:0.1.0 --name lab
 kubectl create namespace lab
 kubectl apply -f k8s/
+kubectl rollout status deployment/notes-api -n lab
 kubectl get pods -n lab
+```
+
+Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:
+
+```bash
+kind load docker-image notes-api:0.1.0 --name lab
+kubectl apply -f k8s/
+kubectl rollout restart deployment/notes-api -n lab
+kubectl rollout status deployment/notes-api -n lab
 ```
 
 Para apagar o cluster: `kind delete cluster --name lab`.
