@@ -27,7 +27,7 @@ O DynamoDB Local roda em memória: os dados somem ao parar.
 Útil para debugar pela IDE. Só o DynamoDB fica no Docker:
 
 ```bash
-docker compose up -d dynamodb
+docker compose up -d --wait dynamodb  # espera o healthcheck indicar que o DynamoDB está pronto
 cd app
 APP_DYNAMODB_ENDPOINT=http://localhost:8000 APP_DYNAMODB_CREATE_TABLE=true ./mvnw spring-boot:run
 ```
