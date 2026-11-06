@@ -15,6 +15,10 @@ RUN ./mvnw -B -q package -DskipTests
 
 # ---- Estágio 2: rodar ----
 FROM eclipse-temurin:25-jre-noble
+# hadolint ignore=DL3008 # Keep versions unpinned so rebuilds can receive future security fixes.
+RUN apt-get -o Acquire::Retries=0 update \
+    && apt-get -o Acquire::Retries=0 install --only-upgrade --no-install-recommends -y apt libapt-pkg6.0t64 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 # Usuário sem privilégios: se a aplicação for comprometida, não é root no container.
 RUN useradd --system --uid 10001 app
