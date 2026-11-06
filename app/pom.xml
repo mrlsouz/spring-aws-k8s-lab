@@ -15,7 +15,7 @@
 	<description>API de notas do lab Spring Boot + AWS + Kubernetes</description>
 	<properties>
 		<java.version>25</java.version>
-		<aws-sdk.version>2.46.7</aws-sdk.version>
+		<aws-sdk.version>2.57.3</aws-sdk.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
