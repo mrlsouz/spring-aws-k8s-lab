@@ -10,6 +10,7 @@ Todos os comandos partem da raiz do repositório.
 | Java 25 | Rodar testes ou a API fora do container |
 | `kind` e `kubectl` | Só para o ambiente Kubernetes local |
 | `curl` e `jq` | Smoke test da API no `kind` |
+| AWS CLI | Smoke test do S3Mock no `kind` |
 
 O Maven não precisa ser instalado: o projeto usa o wrapper `app/mvnw`.
 
@@ -51,11 +52,13 @@ kind load docker-image notes-api:0.1.0 --name lab
 kubectl create namespace lab
 kubectl apply -f k8s/
 kubectl rollout status deployment/notes-api -n lab
+kubectl rollout status deployment/s3mock -n lab
 kubectl get pods -n lab
 ./scripts/smoke-test-kind.sh
+./scripts/smoke-test-s3mock.sh
 ```
 
-O smoke test confere health checks e o ciclo de criar, listar, consultar e excluir uma nota.
+O smoke test da API confere health checks e o ciclo de criar, listar, consultar e excluir uma nota. O S3Mock fica em `http://s3mock:9090` dentro do cluster, com bucket inicial `notes-local`; o smoke test usa credenciais fictícias para enviar e baixar um objeto. S3Mock implementa um subconjunto da API S3 e não acessa a AWS. Os dados são locais e podem sumir ao recriar o Pod.
 
 Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:
 

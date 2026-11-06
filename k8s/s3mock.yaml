@@ -1,0 +1,63 @@
+# S3Mock implementa um subconjunto da API S3 para desenvolvimento local; não acessa a AWS.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3mock
+  namespace: lab
+  labels:
+    app: s3mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3mock
+  template:
+    metadata:
+      labels:
+        app: s3mock
+    spec:
+      containers:
+        - name: s3mock
+          image: adobe/s3mock:5.2.3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+          env:
+            - name: COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS
+              value: notes-local
+          ports:
+            - name: http
+              containerPort: 9090
+          readinessProbe:
+            tcpSocket:
+              port: http
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 18
+          livenessProbe:
+            tcpSocket:
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3mock
+  namespace: lab
+  labels:
+    app: s3mock
+spec:
+  selector:
+    app: s3mock
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http

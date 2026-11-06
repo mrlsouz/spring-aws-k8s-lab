@@ -71,11 +71,16 @@ jobs:
           kubectl apply --dry-run=server -f ../k8s/
           kubectl apply -f ../k8s/dynamodb.yaml
           kubectl rollout status deployment/dynamodb -n lab --timeout=120s
+          kubectl apply -f ../k8s/s3mock.yaml
+          kubectl rollout status deployment/s3mock -n lab --timeout=120s
           kubectl apply -f ../k8s/api-config.yaml -f ../k8s/api.yaml
           kubectl rollout status deployment/notes-api -n lab --timeout=180s
 
       - name: Smoke test da API no kind
         run: ../scripts/smoke-test-kind.sh
+
+      - name: Smoke test do S3Mock no kind
+        run: ../scripts/smoke-test-s3mock.sh
 
   terraform:
     runs-on: ubuntu-latest
