@@ -15,6 +15,10 @@ RUN ./mvnw -B -q package -DskipTests
 
 # ---- Estágio 2: rodar ----
 FROM eclipse-temurin:25-jre-noble
+# Atualiza apenas APT/libapt-pkg; desativa retries no APT antigo durante o patch.
+RUN apt-get -o Acquire::Retries=0 update \
+    && apt-get -o Acquire::Retries=0 install --only-upgrade -y apt libapt-pkg6.0t64 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 # Usuário sem privilégios: se a aplicação for comprometida, não é root no container.
 RUN useradd --system --uid 10001 app
