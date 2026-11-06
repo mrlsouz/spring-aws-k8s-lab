@@ -58,7 +58,7 @@ Toda a infraestrutura é declarada em Terraform, incluindo um alarme de budget p
 
 ## Rodando localmente
 
-Requisitos: Docker. Para rodar os testes ou a API fora do container, também Java 25. Maven não é necessário, porque o projeto usa o wrapper `./mvnw`.
+Requisitos: Docker. Para a fase Kubernetes, também `kind`, `kubectl`, `curl` e `jq`. Para rodar os testes ou a API fora do container, Java 25. Maven não é necessário, porque o projeto usa o wrapper `./mvnw`.
 
 ```bash
 docker compose up --build
@@ -83,6 +83,9 @@ docker build -t notes-api:0.1.0 ./app
 kind load docker-image notes-api:0.1.0 --name lab
 kubectl create namespace lab
 kubectl apply -f k8s/
+kubectl rollout status deployment/dynamodb -n lab
+kubectl rollout status deployment/notes-api -n lab
+./scripts/smoke-test-kind.sh
 ```
 
 Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:

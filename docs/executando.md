@@ -9,6 +9,7 @@ Todos os comandos partem da raiz do repositório.
 | Docker | Compose, build da imagem e testes (Testcontainers) |
 | Java 25 | Rodar testes ou a API fora do container |
 | `kind` e `kubectl` | Só para o ambiente Kubernetes local |
+| `curl` e `jq` | Smoke test da API no `kind` |
 
 O Maven não precisa ser instalado: o projeto usa o wrapper `app/mvnw`.
 
@@ -51,7 +52,10 @@ kubectl create namespace lab
 kubectl apply -f k8s/
 kubectl rollout status deployment/notes-api -n lab
 kubectl get pods -n lab
+./scripts/smoke-test-kind.sh
 ```
+
+O smoke test confere health checks e o ciclo de criar, listar, consultar e excluir uma nota.
 
 Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:
 

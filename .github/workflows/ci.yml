@@ -55,3 +55,50 @@ jobs:
           aquasec/trivy:0.76.1 image
           --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1
           notes-api:${{ github.sha }}
+
+      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          cluster_name: lab
+          version: v0.33.0
+          node_image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+          kubectl_version: v1.37.2
+
+      - name: Validar e aplicar manifests no kind
+        run: |
+          docker tag notes-api:${{ github.sha }} notes-api:0.1.0
+          kind load docker-image notes-api:0.1.0 --name lab
+          kubectl create namespace lab
+          kubectl apply --dry-run=server -f ../k8s/
+          kubectl apply -f ../k8s/dynamodb.yaml
+          kubectl rollout status deployment/dynamodb -n lab --timeout=120s
+          kubectl apply -f ../k8s/api-config.yaml -f ../k8s/api.yaml
+          kubectl rollout status deployment/notes-api -n lab --timeout=180s
+
+      - name: Smoke test da API no kind
+        run: ../scripts/smoke-test-kind.sh
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.9
+          terraform_wrapper: false
+
+      - name: Formatação e validação do Terraform
+        working-directory: terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Checkov para controles selecionados
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE":/tf bridgecrew/checkov:3.3.30 \
+            -f /tf/terraform/aws_s3_bucket.tf --framework terraform --check CKV2_AWS_61
+          docker run --rm -v "$GITHUB_WORKSPACE":/tf bridgecrew/checkov:3.3.30 \
+            -f /tf/k8s/api.yaml --framework kubernetes --check CKV_K8S_20,CKV_K8S_23
