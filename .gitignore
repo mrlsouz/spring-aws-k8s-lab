@@ -6,6 +6,9 @@ target/
 .vscode/
 *.iml
 
+# Infrastructure
+.terraform/
+
 # Env / secrets
 .env
 .env.*
