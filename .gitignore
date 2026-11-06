@@ -16,3 +16,7 @@ target/
 
 # Logs
 *.log
+
+# Notas de estudo pessoais (ficam só na máquina local)
+docs/fase-*.md
+docs/plano-esteira.md

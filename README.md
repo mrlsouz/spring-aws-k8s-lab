@@ -10,7 +10,7 @@
 
 Lab de estudo: uma API de notas em **Spring Boot** levada do notebook até a **AWS**, passando por **Docker**, **Kubernetes**, **Terraform** e **CI/CD no GitHub Actions**.
 
-O projeto é construído em fases pequenas. Cada uma tem anotações em [`docs/`](docs/) com os conceitos, os comandos usados e o porquê de cada decisão.
+O projeto é construído em fases pequenas, uma tecnologia por vez. Como rodar a aplicação: [`docs/executando.md`](docs/executando.md).
 
 ## Arquitetura alvo
 
@@ -40,7 +40,7 @@ Toda a infraestrutura é declarada em Terraform, incluindo um alarme de budget p
 
 | Fase | Conteúdo | Custo AWS | Status |
 |------|----------|-----------|--------|
-| 1 | API Spring Boot, testes de integração, Docker, compose com DynamoDB Local | zero | ✅ [anotações](docs/fase-1.md) |
+| 1 | API Spring Boot, testes de integração, Docker, compose com DynamoDB Local | zero | ✅ |
 | 2 | Kubernetes local com `kind`: Deployment, Service, ConfigMap, probes | zero | 🚧 em andamento |
 | 3 | Terraform na AWS: budget, ECR, DynamoDB, IAM, OIDC do GitHub | ~zero | ⏳ |
 | 4 | EKS via Terraform e pipeline de deploy | por hora; `destroy` ao final | ⏳ |
@@ -52,7 +52,7 @@ Toda a infraestrutura é declarada em Terraform, incluindo um alarme de budget p
 .
 ├── app/            # API Spring Boot (Maven wrapper, Dockerfile, testes)
 ├── k8s/            # manifests Kubernetes (fase 2)
-├── docs/           # anotações de estudo por fase
+├── docs/           # documentação de execução e configuração
 └── compose.yaml    # ambiente local: API + DynamoDB Local
 ```
 

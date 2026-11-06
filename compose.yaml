@@ -8,11 +8,19 @@ services:
     command: -jar DynamoDBLocal.jar -inMemory -sharedDb
     ports:
       - "8000:8000"
+    healthcheck:
+      # Sem assinatura, o DynamoDB Local responde 400 quando o endpoint está pronto.
+      test: ["CMD-SHELL", '[ "$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/)" = 400 ]']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
 
   api:
     build: ./app
     depends_on:
-      - dynamodb
+      dynamodb:
+        condition: service_healthy
     environment:
       # Dentro da rede do compose, o hostname é o nome do serviço.
       APP_DYNAMODB_ENDPOINT: http://dynamodb:8000
