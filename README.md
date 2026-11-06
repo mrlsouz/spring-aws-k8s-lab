@@ -1,6 +1,6 @@
 # spring-aws-k8s-lab
 
-![CI](https://github.com/mrlptrc/spring-aws-k8s-lab/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/mrlsouz/spring-aws-k8s-lab/actions/workflows/ci.yml/badge.svg)
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-6DB33F?logo=springboot&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)
@@ -58,7 +58,7 @@ Toda a infraestrutura é declarada em Terraform, incluindo um alarme de budget p
 
 ## Rodando localmente
 
-Requisitos: Docker. Para rodar os testes ou a API fora do container, também Java 25. Maven não é necessário, porque o projeto usa o wrapper `./mvnw`.
+Requisitos: Docker. Para a fase Kubernetes, também `kind`, `kubectl`, `curl` e `jq`. O smoke test do S3Mock requer AWS CLI. Para rodar os testes ou a API fora do container, Java 25. Maven não é necessário, porque o projeto usa o wrapper `./mvnw`.
 
 ```bash
 docker compose up --build
@@ -83,7 +83,14 @@ docker build -t notes-api:0.1.0 ./app
 kind load docker-image notes-api:0.1.0 --name lab
 kubectl create namespace lab
 kubectl apply -f k8s/
+kubectl rollout status deployment/dynamodb -n lab
+kubectl rollout status deployment/s3mock -n lab
+kubectl rollout status deployment/notes-api -n lab
+./scripts/smoke-test-kind.sh
+./scripts/smoke-test-s3mock.sh
 ```
+
+O S3Mock fica disponível dentro do cluster em `http://s3mock:9090`, com o bucket `notes-local`. Ele implementa apenas parte da API S3 e guarda os objetos localmente; não cria nem acessa recursos AWS. Os dados são de laboratório e podem sumir ao recriar o Pod.
 
 Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:
 
