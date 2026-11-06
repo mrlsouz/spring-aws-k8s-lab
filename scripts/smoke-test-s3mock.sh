@@ -32,8 +32,15 @@ kubectl --namespace "$namespace" port-forward --address 127.0.0.1 \
 port_forward_pid=$!
 
 ready=false
-for _ in {1..60}; do
-  if curl --silent --fail "${endpoint}/" >/dev/null; then
+deadline=$((SECONDS + 120))
+# SECONDS is integer-valued, so reserve one second to keep curl within the deadline.
+while (( SECONDS < deadline )); do
+  remaining=$((deadline - SECONDS - 1))
+  if (( remaining <= 0 )); then
+    break
+  fi
+  if curl --silent --fail --connect-timeout 2 --max-time "$remaining" \
+    "${endpoint}/" >/dev/null; then
     ready=true
     break
   fi
@@ -41,7 +48,10 @@ for _ in {1..60}; do
     cat "$log_file" >&2
     exit 1
   fi
-  sleep 2
+  remaining=$((deadline - SECONDS - 1))
+  if (( remaining > 0 )); then
+    sleep "$((remaining < 2 ? remaining : 2))"
+  fi
 done
 if [[ "$ready" != true ]]; then
   cat "$log_file" >&2
