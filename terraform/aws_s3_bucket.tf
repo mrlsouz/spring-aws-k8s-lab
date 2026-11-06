@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "notes" {
-  bucket = "mrlsouza-notes-lab-20261105-a8f3c2"
+  bucket_prefix = "mrlsouza-notes-lab-"
 
   tags = {
     Name        = "notes"

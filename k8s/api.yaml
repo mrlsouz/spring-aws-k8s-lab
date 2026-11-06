@@ -16,6 +16,9 @@ spec:
       containers:
         - name: notes-api
           image: notes-api:0.1.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
           ports:
             - containerPort: 8080
           envFrom:

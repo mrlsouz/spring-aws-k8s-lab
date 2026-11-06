@@ -8,6 +8,9 @@ target/
 
 # Infrastructure
 .terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfstate.d/
 
 # Env / secrets
 .env
