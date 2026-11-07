@@ -3,14 +3,19 @@ package dev.mrlptrc.notes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.MockClock;
+import io.micrometer.core.instrument.simple.SimpleConfig;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +29,15 @@ import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
 class NoteRepositoryTests {
 
     private MeterRegistry meterRegistry;
+    private MockClock clock;
     private DynamoDbTable<Note> table;
     private NoteRepository repository;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        meterRegistry = new SimpleMeterRegistry();
+        clock = new MockClock();
+        meterRegistry = new SimpleMeterRegistry(SimpleConfig.DEFAULT, clock);
         table = mock(DynamoDbTable.class);
         repository = new NoteRepository(meterRegistry, table);
     }
@@ -43,10 +50,23 @@ class NoteRepositoryTests {
     @Test
     void createRecordsSuccessfulPutOperation() {
         Note note = new Note("note-1", "title", "content", Instant.EPOCH);
+        doAnswer(invocation -> {
+                    clock.add(Duration.ofMillis(7));
+                    return null;
+                })
+                .when(table)
+                .putItem(note);
 
         repository.create(note);
 
         assertTimer("put", "success", 1);
+        assertEquals(
+                7,
+                meterRegistry
+                        .get("notes.dynamodb.operation")
+                        .tags("operation", "put", "result", "success")
+                        .timer()
+                        .totalTime(TimeUnit.MILLISECONDS));
     }
 
     @Test
