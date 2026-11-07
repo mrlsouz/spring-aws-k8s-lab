@@ -4,54 +4,45 @@
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-6DB33F?logo=springboot&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-kind%20%7C%20EKS-326CE5?logo=kubernetes&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-planejado-844FBA?logo=terraform&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-DynamoDB%20%7C%20ECR%20%7C%20EKS-FF9900?logo=amazonwebservices&logoColor=white)
-
-Lab de estudo: uma API de notas em **Spring Boot** levada do notebook até a **AWS**, passando por **Docker**, **Kubernetes**, **Terraform** e **CI/CD no GitHub Actions**.
+![Kubernetes](https://img.shields.io/badge/Kubernetes-kind-326CE5?logo=kubernetes&logoColor=white)
+Lab local de estudo: uma API de notas em **Spring Boot**, **Docker** e **Kubernetes** com **kind**, sem provisionar recursos na AWS.
 
 O projeto é construído em fases pequenas, uma tecnologia por vez. Como rodar a aplicação: [`docs/executando.md`](docs/executando.md).
 
-## Arquitetura alvo
+## Arquitetura local
 
 ```mermaid
 flowchart LR
-    dev[git push] --> gha[GitHub Actions]
-    gha -- "OIDC (sem access keys)" --> aws
-    subgraph aws[AWS]
-        ecr[(ECR)]
-        subgraph eks[EKS]
-            pod[Pod notes-api]
-        end
-        ddb[(DynamoDB)]
-        lb[Load Balancer]
-    end
-    gha -- build + push da imagem --> ecr
-    gha -- deploy --> eks
-    ecr -. pull .-> pod
-    lb --> pod
-    pod -- "IAM via Pod Identity" --> ddb
-    tf[Terraform] -. provisiona .-> aws
+    dev[Desenvolvimento local] --> compose[Docker Compose]
+    compose --> api[Notes API]
+    api --> ddb[(DynamoDB Local)]
+    dev --> kind[kind]
+    kind --> kapi[Notes API]
+    kapi --> kddb[(DynamoDB Local)]
+    dev --> s3[S3Mock]
+    gha[GitHub Actions] --> ci[Testes, build e smoke tests]
+    ci --> kind
 ```
 
-Toda a infraestrutura é declarada em Terraform, incluindo um alarme de budget para evitar surpresas na conta.
+O S3Mock é independente da API e serve para praticar operações compatíveis com parte da API S3. O CI valida os arquivos Terraform sem planejar ou criar recursos AWS.
 
 ## Roteiro
 
-| Fase | Conteúdo | Custo AWS | Status |
-|------|----------|-----------|--------|
-| 1 | API Spring Boot, testes de integração, Docker, compose com DynamoDB Local | zero | ✅ |
-| 2 | Kubernetes local com `kind`: Deployment, Service, ConfigMap, probes | zero | 🚧 em andamento |
-| 3 | Terraform na AWS: budget, ECR, DynamoDB, IAM, OIDC do GitHub | ~zero | ⏳ |
-| 4 | EKS via Terraform e pipeline de deploy | por hora; `destroy` ao final | ⏳ |
-| 5 | Extras: HPA, Prometheus/Grafana, ambiente de staging | por hora | ⏳ |
+| Etapa | Conteúdo | Estado |
+|-------|----------|--------|
+| 1 | API Spring Boot, testes, Docker Compose e DynamoDB Local | ✅ concluída |
+| 2 | kind, Deployments, Services, ConfigMap, probes, S3Mock e smoke tests no CI | ✅ concluída |
+| Próximos estudos | Operar o cluster local: logs, eventos, probes, rollout e troubleshooting | Opcional |
+
+Provisionamento AWS, incluindo S3, EC2, ECR, DynamoDB gerenciado e EKS, foi removido do roteiro para evitar cobranças. Os manifests e arquivos Terraform existentes são material de estudo; não rode `terraform apply` nem crie recursos na AWS neste lab.
 
 ## Estrutura
 
 ```
 .
 ├── app/            # API Spring Boot (Maven wrapper, Dockerfile, testes)
-├── k8s/            # manifests Kubernetes (fase 2)
+├── k8s/            # manifests Kubernetes local (kind)
+├── terraform/      # exemplos validados estaticamente; sem apply
 ├── docs/           # documentação de execução e configuração
 └── compose.yaml    # ambiente local: API + DynamoDB Local
 ```
@@ -75,7 +66,7 @@ Testes de integração (sobem o DynamoDB Local via Testcontainers, então precis
 cd app && ./mvnw test
 ```
 
-### No Kubernetes local (fase 2, em andamento)
+### Kubernetes local (fase 2, concluída)
 
 ```bash
 kind create cluster --name lab
@@ -91,6 +82,8 @@ kubectl rollout status deployment/notes-api -n lab
 ```
 
 O S3Mock fica disponível dentro do cluster em `http://s3mock:9090`, com o bucket `notes-local`. Ele implementa apenas parte da API S3 e guarda os objetos localmente; não cria nem acessa recursos AWS. Os dados são de laboratório e podem sumir ao recriar o Pod.
+
+Este lab não precisa de credenciais AWS. O CI não executa `terraform plan` nem `terraform apply`.
 
 Depois de reconstruir a imagem com a mesma tag ou alterar o ConfigMap, atualize o cluster:
 
@@ -115,11 +108,11 @@ kubectl rollout status deployment/notes-api -n lab
 
 ## Decisões de projeto
 
-- **DynamoDB em vez de RDS:** sem instância parada cobrando e sem exigir subnet privada; acesso controlado só por IAM.
-- **Nenhuma credencial no código ou na imagem:** local usa DynamoDB Local; na AWS o SDK pega credenciais temporárias pela cadeia padrão (Pod Identity no EKS).
-- **Configuração por variável de ambiente:** a mesma imagem roda no compose, no `kind` e no EKS.
+- **DynamoDB Local:** permite praticar a integração com o AWS SDK sem criar uma conta ou tabela AWS.
+- **Sem credenciais AWS:** Compose e Kind apontam para emuladores locais; não configure chaves AWS neste lab.
+- **Configuração por variável de ambiente:** a mesma imagem roda no Compose e no `kind`.
 - **Imagem multi-stage, usuário não-root** e heap da JVM dimensionado pelo limite de memória do container.
-- **Testes contra DynamoDB real (local)** com Testcontainers, em vez de mocks.
+- **Testes contra DynamoDB Local** com Testcontainers, em vez de mocks.
 
 ## Stack
 

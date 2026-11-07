@@ -11,7 +11,6 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 
 @Configuration
 class DynamoDbConfig {
@@ -19,15 +18,12 @@ class DynamoDbConfig {
     @Bean
     DynamoDbClient dynamoDbClient(
             @Value("${app.dynamodb.region}") String region, @Value("${app.dynamodb.endpoint}") String endpoint) {
-        DynamoDbClientBuilder builder = DynamoDbClient.builder().region(Region.of(region));
-        if (!endpoint.isBlank()) {
-            // DynamoDB Local aceita qualquer credencial. Na AWS não entra aqui:
-            // o SDK usa a cadeia padrão (env vars, ~/.aws, Pod Identity no EKS...).
-            builder.endpointOverride(URI.create(endpoint))
-                    .credentialsProvider(
-                            StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")));
-        }
-        return builder.build();
+        // This lab always uses DynamoDB Local, which accepts dummy credentials.
+        return DynamoDbClient.builder()
+                .region(Region.of(region))
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("local", "local")))
+                .build();
     }
 
     @Bean
