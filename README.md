@@ -19,6 +19,13 @@ flowchart LR
     dev --> kind[kind]
     kind --> kapi[Notes API]
     kapi --> kddb[(DynamoDB Local)]
+    kind --> prom[Prometheus]
+    kind --> ksm[Kube State Metrics]
+    kind --> grafana[Grafana]
+    prom -->|scrape| kapi
+    prom -->|scrape| ksm
+    grafana -->|queries| prom
+    dev -->|port-forward| grafana
     dev --> s3[S3Mock]
     gha[GitHub Actions] --> ci[Testes, build e smoke tests]
     ci --> kind
@@ -26,12 +33,15 @@ flowchart LR
 
 O S3Mock é independente da API e serve para praticar operações compatíveis com parte da API S3. O CI valida os arquivos Terraform sem planejar ou criar recursos AWS.
 
+A observabilidade local é opcional e documentada em [`docs/executando.md`](docs/executando.md#observabilidade-local). Prometheus coleta métricas da API e estado dos workloads; o Grafana apresenta um dashboard local.
+
 ## Roteiro
 
 | Etapa | Conteúdo | Estado |
 |-------|----------|--------|
 | 1 | API Spring Boot, testes, Docker Compose e DynamoDB Local | ✅ concluída |
 | 2 | kind, Deployments, Services, ConfigMap, probes, S3Mock e smoke tests no CI | ✅ concluída |
+| Observabilidade local | Prometheus, Grafana, estado de Pods e métricas das operações DynamoDB | Opcional |
 | Próximos estudos | Operar o cluster local: logs, eventos, probes, rollout e troubleshooting | Opcional |
 
 Provisionamento AWS, incluindo S3, EC2, ECR, DynamoDB gerenciado e EKS, foi removido do roteiro para evitar cobranças. Os manifests e arquivos Terraform existentes são material de estudo; não rode `terraform apply` nem crie recursos na AWS neste lab.

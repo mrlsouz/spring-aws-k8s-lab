@@ -68,7 +68,9 @@ jobs:
           docker tag notes-api:${{ github.sha }} notes-api:0.1.0
           kind load docker-image notes-api:0.1.0 --name lab
           kubectl create namespace lab
-          kubectl apply --dry-run=server -f ../k8s/
+          kubectl apply --dry-run=server -f ../k8s/api-config.yaml -f ../k8s/api.yaml -f ../k8s/dynamodb.yaml -f ../k8s/s3mock.yaml
+          kubectl apply -f ../k8s/observability/namespace.yaml
+          kubectl apply --dry-run=server -k ../k8s/observability/
           kubectl apply -f ../k8s/dynamodb.yaml
           kubectl rollout status deployment/dynamodb -n lab --timeout=120s
           kubectl apply -f ../k8s/s3mock.yaml

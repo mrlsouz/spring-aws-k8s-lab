@@ -73,6 +73,42 @@ kubectl rollout status deployment/notes-api -n lab
 
 Para apagar o cluster: `kind delete cluster --name lab`.
 
+## Observabilidade local
+
+Esta atividade é opcional. Com o cluster `lab`, a API e o DynamoDB Local em execução, aplique o stack no namespace isolado `observability`:
+
+```bash
+kubectl apply -k k8s/observability/
+kubectl rollout status deployment/kube-state-metrics -n observability
+kubectl rollout status deployment/prometheus -n observability
+kubectl rollout status deployment/grafana -n observability
+kubectl get pods -n observability
+```
+
+Em outro terminal, abra o Grafana:
+
+```bash
+kubectl port-forward -n observability service/grafana 3000:3000
+```
+
+Acesse <http://localhost:3000> e entre com `admin` / `admin`; no primeiro acesso, defina uma nova senha. Se a porta 3000 estiver ocupada, use `3001:3000` e abra <http://localhost:3001>. O dashboard **Spring AWS K8s Lab** já vem provisionado.
+
+Prometheus coleta `/actuator/prometheus` da API e `/metrics` do kube-state-metrics. Para conferir os alvos, abra outro terminal e rode:
+
+```bash
+kubectl port-forward -n observability service/prometheus 9090:9090
+```
+
+Depois acesse <http://localhost:9090/targets>. Ambos os alvos devem aparecer como `UP`. Gere tráfego para ver séries nos painéis, por exemplo, usando o port-forward da API e o comando `curl` descrito acima. A atualização do painel pode levar até 15 segundos.
+
+Os painéis de DynamoDB medem contagem, duração e falhas das operações feitas pela API. O DynamoDB Local não expõe métricas internas. O stack também não coleta logs, traces ou métricas detalhadas de CPU/memória dos nós. As séries ficam em armazenamento temporário e podem sumir ao recriar os Pods ou o cluster.
+
+O stack roda dentro do `kind`, não usa credenciais AWS e não cria recursos AWS. Ele consome CPU e memória locais. Para removê-lo sem apagar a API ou o DynamoDB Local:
+
+```bash
+kubectl delete -k k8s/observability/
+```
+
 ## Configuração
 
 Todas as propriedades de `app/src/main/resources/application.properties` podem ser sobrescritas por variável de ambiente.
