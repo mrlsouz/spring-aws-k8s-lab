@@ -2,6 +2,8 @@
 
 Todos os comandos partem da raiz do repositório.
 
+Este guia usa Docker, kind e serviços locais. Não exige credenciais AWS nem cria recursos cobrados. O job do Terraform no CI faz apenas validação estática; não execute `terraform apply` neste lab.
+
 ## Requisitos
 
 | Ferramenta | Para quê |
@@ -79,10 +81,10 @@ Todas as propriedades de `app/src/main/resources/application.properties` podem s
 |----------|--------|-----------|
 | `APP_DYNAMODB_TABLE` | `notes` | Nome da tabela |
 | `APP_DYNAMODB_REGION` | `us-east-1` | Região AWS |
-| `APP_DYNAMODB_ENDPOINT` | vazio (AWS real) | Endpoint alternativo, como o DynamoDB Local |
+| `APP_DYNAMODB_ENDPOINT` | `http://localhost:8000` | Endpoint local do DynamoDB Local |
 | `APP_DYNAMODB_CREATE_TABLE` | `false` | Cria a tabela ao subir; só para ambiente local |
 
-Na AWS, as credenciais vêm da cadeia padrão do SDK (variáveis de ambiente, `~/.aws` ou Pod Identity no EKS). Nunca coloque chaves no código ou na imagem.
+Este lab não usa credenciais AWS. Mantenha o endpoint local padrão; não configure credenciais AWS nem deixe o endpoint vazio.
 
 ## Problemas comuns
 
