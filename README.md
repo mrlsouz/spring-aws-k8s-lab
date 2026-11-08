@@ -16,9 +16,11 @@ flowchart LR
     dev[Desenvolvimento local] --> compose[Docker Compose]
     compose --> api[Notes API]
     api --> ddb[(DynamoDB Local)]
+    api -->|snapshots JSON| s3mock[S3Mock]
     dev --> kind[kind]
     kind --> kapi[Notes API]
     kapi --> kddb[(DynamoDB Local)]
+    kapi -->|snapshots JSON| ks3[S3Mock]
     kind --> prom[Prometheus]
     kind --> ksm[Kube State Metrics]
     kind --> grafana[Grafana]
@@ -26,12 +28,11 @@ flowchart LR
     prom -->|scrape| ksm
     grafana -->|queries| prom
     dev -->|port-forward| grafana
-    dev --> s3[S3Mock]
     gha[GitHub Actions] --> ci[Testes, build e smoke tests]
     ci --> kind
 ```
 
-O S3Mock é independente da API e serve para praticar operações compatíveis com parte da API S3. O CI valida os arquivos Terraform sem planejar ou criar recursos AWS.
+O S3Mock guarda snapshots JSON de exportação da API, usando a API compatível com S3. DynamoDB Local continua guardando as notas ativas. Tudo roda localmente; o CI valida os arquivos Terraform sem planejar ou criar recursos AWS.
 
 A observabilidade local é opcional e documentada em [`docs/executando.md`](docs/executando.md#observabilidade-local). Prometheus coleta métricas da API e estado dos workloads; o Grafana apresenta um dashboard local.
 
@@ -39,8 +40,8 @@ A observabilidade local é opcional e documentada em [`docs/executando.md`](docs
 
 | Etapa | Conteúdo | Estado |
 |-------|----------|--------|
-| 1 | API Spring Boot, testes, Docker Compose e DynamoDB Local | ✅ concluída |
-| 2 | kind, Deployments, Services, ConfigMap, probes, S3Mock e smoke tests no CI | ✅ concluída |
+| 1 | API Spring Boot, testes, Docker Compose, DynamoDB Local e exportação/importação S3 | ✅ concluída |
+| 2 | kind, Deployments, Services, ConfigMap, probes, S3Mock persistente e smoke tests no CI | ✅ concluída |
 | Observabilidade local | Prometheus, Grafana, estado de Pods e métricas das operações DynamoDB | Opcional |
 | Próximos estudos | Operar o cluster local: logs, eventos, probes, rollout e troubleshooting | Opcional |
 
@@ -54,7 +55,7 @@ Provisionamento AWS, incluindo S3, EC2, ECR, DynamoDB gerenciado e EKS, foi remo
 ├── k8s/            # manifests Kubernetes local (kind)
 ├── terraform/      # exemplos validados estaticamente; sem apply
 ├── docs/           # documentação de execução e configuração
-└── compose.yaml    # ambiente local: API + DynamoDB Local
+└── compose.yaml    # ambiente local: API + DynamoDB Local + S3Mock
 ```
 
 ## Rodando localmente
@@ -68,7 +69,10 @@ docker compose up --build
 curl -X POST localhost:8080/notes -H 'Content-Type: application/json' \
   -d '{"title":"primeira nota","content":"oi"}'
 curl localhost:8080/notes
+curl -X POST localhost:8080/exports
 ```
+
+O Compose inicia a API, DynamoDB Local e S3Mock. O volume `s3mock-data` preserva os objetos ao parar os containers. `docker compose down -v` também apaga os dados arquivados.
 
 Testes de integração (sobem o DynamoDB Local via Testcontainers, então precisam do Docker rodando):
 
@@ -89,9 +93,10 @@ kubectl rollout status deployment/s3mock -n lab
 kubectl rollout status deployment/notes-api -n lab
 ./scripts/smoke-test-kind.sh
 ./scripts/smoke-test-s3mock.sh
+./scripts/smoke-test-note-export.sh
 ```
 
-O S3Mock fica disponível dentro do cluster em `http://s3mock:9090`, com o bucket `notes-local`. Ele implementa apenas parte da API S3 e guarda os objetos localmente; não cria nem acessa recursos AWS. Os dados são de laboratório e podem sumir ao recriar o Pod.
+O S3Mock fica disponível dentro do cluster em `http://s3mock:9090`, com o bucket `notes-local`. Os snapshots ficam sob `exports/` e persistem no hostPath do nó kind quando o Pod reinicia. Apagar o cluster kind também apaga esse armazenamento local. S3Mock implementa apenas parte da API S3 e não cria nem acessa recursos AWS.
 
 Este lab não precisa de credenciais AWS. O CI não executa `terraform plan` nem `terraform apply`.
 
@@ -112,6 +117,10 @@ kubectl rollout status deployment/notes-api -n lab
 | `GET` | `/notes` | lista notas |
 | `GET` | `/notes/{id}` | busca nota; `404` se não existir |
 | `DELETE` | `/notes/{id}` | remove nota |
+| `POST` | `/exports` | cria snapshot JSON e retorna `exportId` |
+| `GET` | `/exports` | lista snapshots armazenados |
+| `GET` | `/exports/{exportId}` | baixa snapshot como arquivo JSON |
+| `POST` | `/imports/{exportId}` | restaura notas e informa importadas, ignoradas, conflitos e falhas |
 | `GET` | `/actuator/health/liveness` | liveness probe |
 | `GET` | `/actuator/health/readiness` | readiness probe |
 | `GET` | `/actuator/prometheus` | métricas no formato Prometheus |
@@ -123,7 +132,9 @@ kubectl rollout status deployment/notes-api -n lab
 - **Configuração por variável de ambiente:** a mesma imagem roda no Compose e no `kind`.
 - **Imagem multi-stage, usuário não-root** e heap da JVM dimensionado pelo limite de memória do container.
 - **Testes contra DynamoDB Local** com Testcontainers, em vez de mocks.
+- **Snapshots versionados:** JSON com `schemaVersion`, `exportId`, `generatedAt` e as notas completas.
+- **Importação retomável:** preserva IDs, ignora registros idênticos, informa conflitos sem sobrescrever e interrompe na primeira falha de gravação.
 
 ## Stack
 
-Java 25 · Spring Boot 4 · AWS SDK v2 (DynamoDB Enhanced Client) · JUnit 5 · Testcontainers · Docker · Kubernetes (`kind`)
+Java 25 · Spring Boot 4 · AWS SDK v2 (DynamoDB Enhanced Client e S3) · S3Mock · JUnit 5 · Testcontainers · Docker · Kubernetes (`kind`)
