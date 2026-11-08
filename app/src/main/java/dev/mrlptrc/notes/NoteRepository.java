@@ -9,7 +9,7 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 
 @Repository
-class NoteRepository {
+public class NoteRepository {
 
     private static final String OPERATION_METRIC = "notes.dynamodb.operation";
 
@@ -28,7 +28,7 @@ class NoteRepository {
         });
     }
 
-    List<Note> list() {
+    public List<Note> list() {
         return record("scan", () -> table.scan().items().stream().toList());
     }
 

@@ -3,10 +3,12 @@ package dev.mrlptrc.notes;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,12 +35,20 @@ class NotesApiApplicationTests {
             .withCommand("-jar DynamoDBLocal.jar -inMemory -sharedDb")
             .withExposedPorts(8000);
 
+    @Container
+    static GenericContainer<?> s3mock = new GenericContainer<>("adobe/s3mock:5.2.3")
+            .withEnv("COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS", "notes-local")
+            .withEnv("COM_ADOBE_TESTING_S3MOCK_STORE_ROOT", "/s3mockroot")
+            .withExposedPorts(9090);
+
     // Porta do container é aleatória: injeta o endpoint depois que ele sobe.
     @DynamicPropertySource
     static void dynamoProperties(DynamicPropertyRegistry registry) {
         registry.add(
                 "app.dynamodb.endpoint", () -> "http://" + dynamodb.getHost() + ":" + dynamodb.getMappedPort(8000));
         registry.add("app.dynamodb.create-table", () -> "true");
+        registry.add("app.s3.endpoint", () -> "http://" + s3mock.getHost() + ":" + s3mock.getMappedPort(9090));
+        registry.add("app.s3.bucket", () -> "notes-local");
     }
 
     @Autowired
@@ -76,5 +86,34 @@ class NotesApiApplicationTests {
     void exposesProbes() throws Exception {
         mvc.perform(get("/actuator/health/liveness")).andExpect(status().isOk());
         mvc.perform(get("/actuator/health/readiness")).andExpect(status().isOk());
+    }
+
+    @Test
+    void exportsListsAndDownloadsNotes() throws Exception {
+        mvc.perform(post("/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"snapshot note\",\"content\":\"archive me\"}"))
+                .andExpect(status().isCreated());
+
+        String body = mvc.perform(post("/exports"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.exportId").isNotEmpty())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String exportId = JsonPath.read(body, "$.exportId");
+
+        mvc.perform(get("/exports"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.exportId == '" + exportId + "')]").exists());
+        mvc.perform(get("/exports/" + exportId))
+                .andExpect(status().isOk())
+                .andExpect(
+                        header().string("Content-Disposition", "attachment; filename=\"notes-" + exportId + ".json\""))
+                .andExpect(jsonPath("$.schemaVersion").value(1))
+                .andExpect(jsonPath("$.notes[0].title").value("snapshot note"))
+                .andExpect(jsonPath("$.notes[0].content").value("archive me"));
+        mvc.perform(get("/exports/not-a-uuid")).andExpect(status().isNotFound());
+        mvc.perform(get("/exports/" + UUID.randomUUID())).andExpect(status().isNotFound());
     }
 }
