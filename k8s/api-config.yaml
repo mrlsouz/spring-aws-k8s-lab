@@ -6,3 +6,5 @@ metadata:
 data:
   APP_DYNAMODB_ENDPOINT: http://dynamodb:8000
   APP_DYNAMODB_CREATE_TABLE: "true"
+  APP_S3_ENDPOINT: http://s3mock:9090
+  APP_S3_BUCKET: notes-local

@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
-import software.amazon.awssdk.enhanced.dynamodb.Key;
 
 @RestController
 @RequestMapping("/notes")
@@ -27,28 +25,28 @@ class NoteController {
             @NotBlank @Size(max = 200) String title,
             @Size(max = 10_000) String content) {}
 
-    private final DynamoDbTable<Note> table;
+    private final NoteRepository repository;
 
-    NoteController(DynamoDbTable<Note> table) {
-        this.table = table;
+    NoteController(NoteRepository repository) {
+        this.repository = repository;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Note create(@Valid @RequestBody NoteRequest request) {
         Note note = new Note(UUID.randomUUID().toString(), request.title(), request.content(), Instant.now());
-        table.putItem(note);
+        repository.create(note);
         return note;
     }
 
     @GetMapping
     List<Note> list() {
-        return table.scan().items().stream().toList();
+        return repository.list();
     }
 
     @GetMapping("/{id}")
     Note get(@PathVariable String id) {
-        Note note = table.getItem(Key.builder().partitionValue(id).build());
+        Note note = repository.get(id);
         if (note == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
@@ -58,6 +56,6 @@ class NoteController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable String id) {
-        table.deleteItem(Key.builder().partitionValue(id).build());
+        repository.delete(id);
     }
 }
