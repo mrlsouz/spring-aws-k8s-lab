@@ -64,6 +64,28 @@ class NoteExportServiceTests {
     }
 
     @Test
+    void hidesObjectStorageFailureDetailsWhenDownloadingSnapshot() {
+        NoteRepository repository = mock(NoteRepository.class);
+        ObjectStore objectStore = mock(ObjectStore.class);
+        String exportId = "a5f8a7e2-58d5-4ec8-a7b5-1a0919ee687c";
+        when(objectStore.get("exports/" + exportId + ".json"))
+                .thenThrow(S3Exception.builder()
+                        .statusCode(503)
+                        .message("provider internals")
+                        .build());
+        var service = new NoteExportService(
+                repository,
+                objectStore,
+                JsonMapper.builder().findAndAddModules().build());
+
+        ResponseStatusException failure = org.junit.jupiter.api.Assertions.assertThrows(
+                ResponseStatusException.class, () -> service.downloadExport(exportId));
+
+        assertEquals(500, failure.getStatusCode().value());
+        assertEquals("Object storage operation failed", failure.getReason());
+    }
+
+    @Test
     void createsListsAndDownloadsVersionedSnapshot() throws Exception {
         NoteRepository repository = mock(NoteRepository.class);
         InMemoryObjectStore objectStore = new InMemoryObjectStore();
