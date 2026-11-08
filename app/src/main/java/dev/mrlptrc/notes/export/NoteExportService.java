@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -37,18 +38,30 @@ public class NoteExportService {
                 .map(note -> new NoteSnapshot(note.getId(), note.getTitle(), note.getContent(), note.getCreatedAt()))
                 .toList();
         byte[] bytes = serialize(new NotesSnapshot(1, exportId, generatedAt, notes));
-        objectStore.put(key(exportId), bytes, "application/json");
+        try {
+            objectStore.put(key(exportId), bytes, "application/json");
+        } catch (S3Exception failure) {
+            throw storageFailure();
+        } catch (SdkException failure) {
+            throw storageFailure();
+        }
         return new ExportDescriptor(exportId, generatedAt, bytes.length);
     }
 
     public List<ExportDescriptor> listExports() {
-        return objectStore.list(PREFIX).stream()
-                .filter(object -> EXPORT_KEY.matcher(object.key()).matches())
-                .map(object -> new ExportDescriptor(
-                        object.key().substring(PREFIX.length(), object.key().length() - ".json".length()),
-                        object.lastModified(),
-                        object.size()))
-                .toList();
+        try {
+            return objectStore.list(PREFIX).stream()
+                    .filter(object -> EXPORT_KEY.matcher(object.key()).matches())
+                    .map(object -> new ExportDescriptor(
+                            object.key().substring(PREFIX.length(), object.key().length() - ".json".length()),
+                            object.lastModified(),
+                            object.size()))
+                    .toList();
+        } catch (S3Exception failure) {
+            throw storageFailure();
+        } catch (SdkException failure) {
+            throw storageFailure();
+        }
     }
 
     public NotesSnapshot downloadExport(String exportId) {
@@ -61,7 +74,9 @@ public class NoteExportService {
             if (failure.statusCode() == 404) {
                 throw notFound();
             }
-            throw failure;
+            throw storageFailure();
+        } catch (SdkException failure) {
+            throw storageFailure();
         } catch (JacksonException failure) {
             throw new IllegalStateException("Could not read stored notes export", failure);
         }
@@ -90,5 +105,9 @@ public class NoteExportService {
 
     private static ResponseStatusException notFound() {
         return new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+
+    private static ResponseStatusException storageFailure() {
+        return new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Object storage operation failed");
     }
 }

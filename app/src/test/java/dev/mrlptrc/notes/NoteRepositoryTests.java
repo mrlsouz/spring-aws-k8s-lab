@@ -1,11 +1,14 @@
 package dev.mrlptrc.notes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -25,6 +28,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
+import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 class NoteRepositoryTests {
 
@@ -103,6 +108,28 @@ class NoteRepositoryTests {
         assertSame(failure, assertThrows(SdkClientException.class, () -> repository.create(note)));
 
         assertTimer("put", "failure", 1);
+    }
+
+    @Test
+    void createIfAbsentWritesConditionally() {
+        Note note = new Note("note-1", "title", "content", Instant.EPOCH);
+
+        assertTrue(repository.createIfAbsent(note));
+
+        verify(table).putItem(ArgumentMatchers.<PutItemEnhancedRequest<Note>>any());
+        assertTimer("put-if-absent", "success", 1);
+    }
+
+    @Test
+    void createIfAbsentReturnsFalseWhenIdAlreadyExists() {
+        Note note = new Note("note-1", "title", "content", Instant.EPOCH);
+        doThrow(ConditionalCheckFailedException.builder().statusCode(400).build())
+                .when(table)
+                .putItem(ArgumentMatchers.<PutItemEnhancedRequest<Note>>any());
+
+        assertFalse(repository.createIfAbsent(note));
+
+        assertTimer("put-if-absent", "success", 1);
     }
 
     private void assertTimer(String operation, String result, long count) {

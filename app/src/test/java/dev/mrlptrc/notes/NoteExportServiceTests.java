@@ -2,6 +2,7 @@ package dev.mrlptrc.notes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -13,9 +14,54 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import tools.jackson.databind.json.JsonMapper;
 
 class NoteExportServiceTests {
+
+    @Test
+    void hidesObjectStorageFailureDetailsWhenWritingExport() {
+        NoteRepository repository = mock(NoteRepository.class);
+        ObjectStore objectStore = mock(ObjectStore.class);
+        var mapper = JsonMapper.builder().findAndAddModules().build();
+        when(repository.list()).thenReturn(List.of());
+        doThrow(S3Exception.builder()
+                        .statusCode(503)
+                        .message("provider internals")
+                        .build())
+                .when(objectStore)
+                .put(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyString());
+        var service = new NoteExportService(repository, objectStore, mapper);
+
+        ResponseStatusException failure =
+                org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException.class, service::createExport);
+
+        assertEquals(500, failure.getStatusCode().value());
+        assertEquals("Object storage operation failed", failure.getReason());
+    }
+
+    @Test
+    void mapsMissingSnapshotToNotFound() {
+        NoteRepository repository = mock(NoteRepository.class);
+        ObjectStore objectStore = mock(ObjectStore.class);
+        String exportId = "a5f8a7e2-58d5-4ec8-a7b5-1a0919ee687c";
+        when(objectStore.get("exports/" + exportId + ".json"))
+                .thenThrow(NoSuchKeyException.builder().statusCode(404).build());
+        var service = new NoteExportService(
+                repository,
+                objectStore,
+                JsonMapper.builder().findAndAddModules().build());
+
+        ResponseStatusException failure = org.junit.jupiter.api.Assertions.assertThrows(
+                ResponseStatusException.class, () -> service.downloadExport(exportId));
+
+        assertEquals(404, failure.getStatusCode().value());
+    }
 
     @Test
     void createsListsAndDownloadsVersionedSnapshot() throws Exception {

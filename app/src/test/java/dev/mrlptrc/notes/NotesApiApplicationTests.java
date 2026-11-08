@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,6 +54,14 @@ class NotesApiApplicationTests {
 
     @Autowired
     MockMvc mvc;
+
+    @Autowired
+    NoteRepository repository;
+
+    @BeforeEach
+    void clearNotes() {
+        repository.list().forEach(note -> repository.delete(note.getId()));
+    }
 
     @Test
     void createGetListDelete() throws Exception {
@@ -115,5 +124,36 @@ class NotesApiApplicationTests {
                 .andExpect(jsonPath("$.notes[0].content").value("archive me"));
         mvc.perform(get("/exports/not-a-uuid")).andExpect(status().isNotFound());
         mvc.perform(get("/exports/" + UUID.randomUUID())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void importsExportWithoutOverwritingExistingNotes() throws Exception {
+        String noteBody = mvc.perform(post("/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"restore me\",\"content\":\"saved\"}"))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String noteId = JsonPath.read(noteBody, "$.id");
+        String exportBody = mvc.perform(post("/exports"))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String exportId = JsonPath.read(exportBody, "$.exportId");
+
+        mvc.perform(delete("/notes/" + noteId)).andExpect(status().isNoContent());
+        mvc.perform(post("/imports/" + exportId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(1))
+                .andExpect(jsonPath("$.skipped").value(0));
+        mvc.perform(get("/notes/" + noteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("restore me"));
+        mvc.perform(post("/imports/" + exportId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(0))
+                .andExpect(jsonPath("$.skipped").value(1));
     }
 }

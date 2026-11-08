@@ -6,7 +6,10 @@ import java.util.List;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 @Repository
 public class NoteRepository {
@@ -21,10 +24,26 @@ public class NoteRepository {
         this.table = table;
     }
 
-    void create(Note note) {
+    public void create(Note note) {
         record("put", () -> {
             table.putItem(note);
             return null;
+        });
+    }
+
+    public boolean createIfAbsent(Note note) {
+        return record("put-if-absent", () -> {
+            try {
+                table.putItem(PutItemEnhancedRequest.builder(Note.class)
+                        .item(note)
+                        .conditionExpression(Expression.builder()
+                                .expression("attribute_not_exists(id)")
+                                .build())
+                        .build());
+                return true;
+            } catch (ConditionalCheckFailedException conflict) {
+                return false;
+            }
         });
     }
 
@@ -32,7 +51,7 @@ public class NoteRepository {
         return record("scan", () -> table.scan().items().stream().toList());
     }
 
-    Note get(String id) {
+    public Note get(String id) {
         return record(
                 "get", () -> table.getItem(Key.builder().partitionValue(id).build()));
     }
