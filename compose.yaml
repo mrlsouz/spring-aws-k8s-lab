@@ -16,6 +16,16 @@ services:
       retries: 30
       start_period: 5s
 
+  s3mock:
+    image: adobe/s3mock:5.2.3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: notes-local
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data
+    ports:
+      - "9090:9090"
+    volumes:
+      - s3mock-data:/data
+
   api:
     build: ./app
     depends_on:
@@ -27,3 +37,6 @@ services:
       APP_DYNAMODB_CREATE_TABLE: "true"
     ports:
       - "8080:8080"
+
+volumes:
+  s3mock-data:

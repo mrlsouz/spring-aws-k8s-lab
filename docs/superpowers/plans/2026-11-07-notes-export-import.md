@@ -59,12 +59,12 @@
 
 **Interfaces:** Provides bucket `notes-local` at `http://s3mock:9090` inside Compose and kind, with object data surviving container/Pod restart.
 
-- [ ] Add an S3Mock 5.2.3 service to Compose, configure `notes-local` and `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/data`, and mount a named volume at `/data`.
-- [ ] Configure `k8s/s3mock.yaml` with the same bucket and storage root; mount a single-node kind `hostPath` volume at `/data` using `DirectoryOrCreate`.
-- [ ] Extend `scripts/smoke-test-s3mock.sh` to upload an object, delete the S3Mock Pod, wait for readiness, then download and compare the same object.
-- [ ] Add API ConfigMap values `APP_S3_ENDPOINT=http://s3mock:9090` and `APP_S3_BUCKET=notes-local`.
-- [ ] Run `docker compose config`; expected output validates the Compose model.
-- [ ] Apply the S3Mock manifest, upload a test object, delete the Pod, wait for readiness, and verify the object is still present.
+- [x] Add an S3Mock 5.2.3 service to Compose, configure `notes-local` and `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/data`, and mount a named volume at `/data`.
+- [x] Configure `k8s/s3mock.yaml` with the same bucket and storage root; mount a single-node kind `hostPath` volume at `/data` using `DirectoryOrCreate`.
+- [x] Extend `scripts/smoke-test-s3mock.sh` to upload an object, delete the S3Mock Pod, wait for readiness, then download and compare the same object.
+- [x] Add API ConfigMap values `APP_S3_ENDPOINT=http://s3mock:9090` and `APP_S3_BUCKET=notes-local`.
+- [x] Run `docker compose config`; expected output validates the Compose model.
+- [x] Apply the S3Mock manifest, upload a test object, delete the Pod, wait for readiness, and verify the object is still present.
 - [ ] Commit Task 1 as `feat: persist local s3mock objects`.
 
 ### Task 2: Add the S3 object adapter
