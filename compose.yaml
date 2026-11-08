@@ -20,21 +20,26 @@ services:
     image: adobe/s3mock:5.2.3
     environment:
       COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: notes-local
-      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
     ports:
       - "9090:9090"
     volumes:
-      - s3mock-data:/data
+      - s3mock-data:/s3mockroot
 
   api:
     build: ./app
     depends_on:
       dynamodb:
         condition: service_healthy
+      s3mock:
+        condition: service_started
     environment:
       # Dentro da rede do compose, o hostname é o nome do serviço.
       APP_DYNAMODB_ENDPOINT: http://dynamodb:8000
       APP_DYNAMODB_CREATE_TABLE: "true"
+      APP_S3_ENDPOINT: http://s3mock:9090
+      APP_S3_BUCKET: notes-local
     ports:
       - "8080:8080"
 

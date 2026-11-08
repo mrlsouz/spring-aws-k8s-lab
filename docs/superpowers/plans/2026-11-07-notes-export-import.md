@@ -59,13 +59,13 @@
 
 **Interfaces:** Provides bucket `notes-local` at `http://s3mock:9090` inside Compose and kind, with object data surviving container/Pod restart.
 
-- [x] Add an S3Mock 5.2.3 service to Compose, configure `notes-local` and `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/data`, and mount a named volume at `/data`.
-- [x] Configure `k8s/s3mock.yaml` with the same bucket and storage root; mount a single-node kind `hostPath` volume at `/data` using `DirectoryOrCreate`.
+- [x] Add an S3Mock 5.2.3 service to Compose, configure `notes-local`, set `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/s3mockroot` and `COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT=true`, and mount a named volume at `/s3mockroot`.
+- [x] Configure `k8s/s3mock.yaml` with the same bucket/storage root and retain-files setting; mount a single-node kind `hostPath` volume at `/s3mockroot` using `DirectoryOrCreate`.
 - [x] Extend `scripts/smoke-test-s3mock.sh` to upload an object, delete the S3Mock Pod, wait for readiness, then download and compare the same object.
 - [x] Add API ConfigMap values `APP_S3_ENDPOINT=http://s3mock:9090` and `APP_S3_BUCKET=notes-local`.
 - [x] Run `docker compose config`; expected output validates the Compose model.
 - [x] Apply the S3Mock manifest, upload a test object, delete the Pod, wait for readiness, and verify the object is still present.
-- [ ] Commit Task 1 as `feat: persist local s3mock objects`.
+- [x] Commit Task 1 as `feat: persist local s3mock objects`.
 
 ### Task 2: Add the S3 object adapter
 
@@ -73,12 +73,13 @@
 
 **Interfaces:** `ObjectStore.put(String key, byte[] bytes, String contentType)`, `ObjectStore.get(String key) -> StoredObject`, `ObjectStore.list(String prefix) -> List<StoredObjectSummary>`. Define `StoredObject(byte[] bytes, String contentType)` and `StoredObjectSummary(String key, Instant lastModified, long size)` as nested records in `ObjectStore`.
 
-- [ ] Write `S3ObjectStoreTests` for put/get/list against an S3Mock Testcontainer using a unique test bucket and dummy credentials.
-- [ ] Run `cd app && ./mvnw -Dtest=S3ObjectStoreTests test`; expected initial failure because the adapter is not implemented.
-- [ ] Add `software.amazon.awssdk:s3` to `app/pom.xml`; configure `S3Client` with endpoint override, `Region`, and static dummy credentials.
-- [ ] Implement the `ObjectStore` methods with the AWS SDK v2 and map SDK results to storage DTOs.
-- [ ] Configure `app.s3.endpoint=http://localhost:9090`, `app.s3.bucket=notes-local`, and `app.s3.region=us-east-1` defaults; Compose/kind override the endpoint.
-- [ ] Rerun `cd app && ./mvnw -Dtest=S3ObjectStoreTests test`; expected PASS.
+- [x] Add `software.amazon.awssdk:s3` to `app/pom.xml` so the adapter integration test can compile against the AWS SDK.
+- [x] Write `S3ObjectStoreTests` for put/get/list against an S3Mock Testcontainer using a unique test bucket and dummy credentials.
+- [x] Run `cd app && ./mvnw -Dtest=S3ObjectStoreTests test`; expected initial failure because the adapter is not implemented.
+- [x] Configure `S3Client` with endpoint override, `Region`, and static dummy credentials.
+- [x] Implement the `ObjectStore` methods with the AWS SDK v2 and map SDK results to storage DTOs.
+- [x] Configure `app.s3.endpoint=http://localhost:9090`, `app.s3.bucket=notes-local`, and `app.s3.region=us-east-1` defaults; Compose/kind override the endpoint.
+- [x] Rerun `cd app && ./mvnw -Dtest=S3ObjectStoreTests test`; expected PASS.
 - [ ] Commit Task 2 as `feat: add local s3 object storage adapter`.
 
 ### Task 3: Export and download snapshots
