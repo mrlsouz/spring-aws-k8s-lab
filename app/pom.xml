@@ -15,7 +15,7 @@
 	<description>API de notas do lab Spring Boot + AWS + Kubernetes</description>
 	<properties>
 		<java.version>25</java.version>
-		<aws-sdk.version>2.57.3</aws-sdk.version>
+		<aws-sdk.version>2.57.11</aws-sdk.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -94,7 +94,7 @@
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
-				<version>3.10.4</version>
+				<version>3.11.0</version>
 				<configuration>
 					<java>
 						<palantirJavaFormat>
